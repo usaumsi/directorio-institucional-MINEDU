@@ -173,17 +173,17 @@
                             <form onSubmit={handleSubmit} className="space-y-6">
                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 p-4 border rounded-md">
                                     {renderSelect('Sigla Unidad Orgánica', 'siglaDependencia', formData.siglaDependencia, (e) => handleSiglaChange(e, unidadesOrganicas, 'siglaDependencia', 'dependencia', 'jefeDependencia'), unidadesOrganicas)}
-                                    {renderInput('Unidad Orgánica', 'dependencia', formData.dependencia, handleInputChange, true)}
+                                    {renderInput('Unidad Orgánica', 'dependencia', formData.dependencia, handleInputChange, false)}
                                     {renderInput('Jefe Unidad Orgánica', 'jefeDependencia', formData.jefeDependencia, handleInputChange, false)}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 p-4 border rounded-md">
                                    {renderSelect('Sigla Dirección', 'siglaOficina', formData.siglaOficina, (e) => handleSiglaChange(e, direcciones, 'siglaOficina', 'oficina', 'jefeOficina'), direcciones)}
-                                   {renderInput('Dirección', 'oficina', formData.oficina, handleInputChange, true)}
+                                   {renderInput('Dirección', 'oficina', formData.oficina, handleInputChange, false)}
                                    {renderInput('Jefe Dirección', 'jefeOficina', formData.jefeOficina, handleInputChange, false)}
                                 </div>
                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 p-4 border rounded-md">
                                    {renderSelect('Sigla Unidad', 'siglaSubOficina', formData.siglaSubOficina, (e) => handleSiglaChange(e, unidades, 'siglaSubOficina', 'subOficina', 'jefeSubOficina'), unidades)}
-                                   {renderInput('Unidad', 'subOficina', formData.subOficina, handleInputChange, true)}
+                                   {renderInput('Unidad', 'subOficina', formData.subOficina, handleInputChange, false)}
                                    {renderInput('Jefe Unidad', 'jefeSubOficina', formData.jefeSubOficina, handleInputChange, false)}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4">
@@ -520,7 +520,13 @@
                 return () => unsubscribe();
             }, []);
             
-             React.useEffect(() => {
+            React.useEffect(() => {
+                if (userRole === 'admin') {
+                   // No longer seeding database on admin login to prevent overwrites
+                }
+            }, [userRole]);
+
+            React.useEffect(() => {
                 if (!currentUser) return;
 
                 const collections = {
