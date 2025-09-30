@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directorio Institucional del MINEDU</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- INICIO DEL CÓDIGO DE REACT ---
+        
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyBLh8xVEnGOdtHxSyP3p4Q5f-JXeWhRFOE",
+          authDomain: "directorio-institucional-9e05a.firebaseapp.com",
+          projectId: "directorio-institucional-9e05a",
+          storageBucket: "directorio-institucional-9e05a.appspot.com",
+          messagingSenderId: "591758149109",
+          appId: "1:591758149109:web:6f735bd80a172030bf0cbc"
+        };
+        const appId = firebaseConfig.projectId;
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        // firebase.firestore().setLogLevel('error'); // Uncomment for debugging
+
+        // --- Master Admin Credentials ---
+        const ADMIN_EMAIL = "admin@directorio.com";
+
+        // --- SVG Icons ---
+        const EditIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>);
+        const DeleteIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>);
+        const AddIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>);
+        const LogoutIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>);
+
+        
+        const LoginScreen = ({ onAdminLogin, onGuestLogin }) => {
+            const [email, setEmail] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [error, setError] = React.useState('');
+            const [loading, setLoading] = React.useState(false);
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+                try {
+                    await onAdminLogin(email, password);
+                } catch (error) {
+                    setError('Credenciales incorrectas.');
+                    console.error("Login failed:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleGuest = async () => {
+                setError('');
+                setLoading(true);
+                try {
+                    await onGuestLogin();
+                } catch (error) {
+                    setError('No se pudo ingresar como invitado.');
+                    console.error("Guest login failed:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
+                    <div className="w-full max-w-sm bg-white rounded-lg shadow-xl p-8">
+                        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Directorio Institucional</h1>
+                        <p className="text-center text-gray-500 mb-8">Para uso de la MSI</p>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            {error && <p className="bg-red-100 text-red-700 p-3 rounded-md text-sm text-center">{error}</p>}
+                            <div>
+                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">Email</label>
+                                <input className="shadow-sm appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                            </div>
+                            <div>
+                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">Contraseña</label>
+                                <input className="shadow-sm appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                            </div>
+                            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 disabled:opacity-50" type="submit" disabled={loading}>
+                                {loading ? 'Ingresando...' : 'Iniciar Sesión'}
+                            </button>
+                        </form>
+                        <div className="my-6 flex items-center">
+                            <div className="flex-grow border-t border-gray-300"></div>
+                            <span className="flex-shrink mx-4 text-gray-400 text-sm">o</span>
+                            <div className="flex-grow border-t border-gray-300"></div>
+                        </div>
+                        <button onClick={handleGuest} className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition-colors duration-200 disabled:opacity-50" disabled={loading}>
+                            {loading ? '...' : 'Entrar como Invitado'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const SedeFormModal = ({ isOpen, onClose, onSave, currentSede, unidadesOrganicas, direcciones, unidades }) => {
+            const [formData, setFormData] = React.useState({});
+
+            React.useEffect(() => {
+                setFormData(currentSede || {
+                    dependencia: '', siglaDependencia: '', jefeDependencia: '',
+                    oficina: '', siglaOficina: '', jefeOficina: '',
+                    subOficina: '', siglaSubOficina: '', jefeSubOficina: '',
+                    sede: '', piso: ''
+                });
+            }, [currentSede, isOpen]);
+
+            if (!isOpen) return null;
+
+            const handleSiglaChange = (e, options, siglaField, nameField, jefeField) => {
+                const sigla = e.target.value;
+                const selectedOption = options.find(opt => opt.sigla === sigla);
+                setFormData(prev => ({
+                    ...prev,
+                    [siglaField]: sigla,
+                    [nameField]: selectedOption ? selectedOption.nombre : '',
+                    [jefeField]: selectedOption ? selectedOption.jefe : ''
+                }));
+            };
+            
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onSave(formData);
+                onClose();
+            };
+            
+            const renderSelect = (label, name, value, onChange, options) => (
+                <div>
+                    <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+                    <select id={name} name={name} value={value || ''} onChange={onChange} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="">Seleccionar...</option>
+                        {options.map(opt => <option key={opt.id} value={opt.sigla}>{opt.sigla}</option>)}
+                    </select>
+                </div>
+            );
+            const renderInput = (label, name, value, onChange, readOnly = false) => (
+                 <div>
+                    <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+                    <input type="text" id={name} name={name} value={value || ''} onChange={onChange} className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm ${readOnly ? 'bg-gray-50' : 'bg-white'}`} readOnly={readOnly}/>
+                </div>
+            );
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-full overflow-y-auto">
+                        <div className="p-8">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6">{currentSede?.id ? 'Editar Registro' : 'Nuevo Registro'}</h2>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 p-4 border rounded-md">
+                                    {renderSelect('Sigla Unidad Orgánica', 'siglaDependencia', formData.siglaDependencia, (e) => handleSiglaChange(e, unidadesOrganicas, 'siglaDependencia', 'dependencia', 'jefeDependencia'), unidadesOrganicas)}
+                                    {renderInput('Unidad Orgánica', 'dependencia', formData.dependencia, handleInputChange, true)}
+                                    {renderInput('Jefe Unidad Orgánica', 'jefeDependencia', formData.jefeDependencia, handleInputChange, false)}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 p-4 border rounded-md">
+                                   {renderSelect('Sigla Dirección', 'siglaOficina', formData.siglaOficina, (e) => handleSiglaChange(e, direcciones, 'siglaOficina', 'oficina', 'jefeOficina'), direcciones)}
+                                   {renderInput('Dirección', 'oficina', formData.oficina, handleInputChange, true)}
+                                   {renderInput('Jefe Dirección', 'jefeOficina', formData.jefeOficina, handleInputChange, false)}
+                                </div>
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 p-4 border rounded-md">
+                                   {renderSelect('Sigla Unidad', 'siglaSubOficina', formData.siglaSubOficina, (e) => handleSiglaChange(e, unidades, 'siglaSubOficina', 'subOficina', 'jefeSubOficina'), unidades)}
+                                   {renderInput('Unidad', 'subOficina', formData.subOficina, handleInputChange, true)}
+                                   {renderInput('Jefe Unidad', 'jefeSubOficina', formData.jefeSubOficina, handleInputChange, false)}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-4">
+                                   {renderInput('Sede', 'sede', formData.sede, handleInputChange)}
+                                   {renderInput('Piso', 'piso', formData.piso, handleInputChange)}
+                                </div>
+                                <div className="pt-6 flex justify-end space-x-3">
+                                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                                    <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Guardar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const UserManagementView = ({ users, currentUser }) => {
+            const usersCollectionPath = `users`;
+
+            const handleToggleStatus = async (userId, currentStatus) => {
+                const newStatus = currentStatus === 'disabled' ? 'active' : 'disabled';
+                const userDocRef = db.collection(usersCollectionPath).doc(userId);
+                try {
+                    await userDocRef.update({ status: newStatus });
+                } catch (error) { console.error("Error toggling user status:", error); }
+            };
+
+            const handleDeleteUser = async (userId) => {
+                const userDocRef = db.collection(usersCollectionPath).doc(userId);
+                try {
+                    await userDocRef.delete();
+                } catch (error) { console.error("Error deleting user:", error); }
+            };
+            
+            const handleChangeRole = async (userId, currentRole) => {
+                const newRole = currentRole === 'admin' ? 'user' : 'admin';
+                const userDocRef = db.collection(usersCollectionPath).doc(userId);
+                try {
+                    await userDocRef.update({ role: newRole });
+                } catch (error) { console.error("Error changing role:", error); }
+            };
+
+            return (
+                <div className="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 className="text-2xl font-bold mb-6">Gestión de Usuarios</h2>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario (Email / ID)</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {users.map(user => {
+                                    const isCurrentUser = user.id === currentUser.uid;
+                                    return (
+                                        <tr key={user.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.email || user.id}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-green-100 text-green-800'}`}>
+                                                    {user.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                    {user.status || 'active'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
+                                                <button onClick={() => handleChangeRole(user.id, user.role)} className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isCurrentUser}>Cambiar Rol</button>
+                                                <button onClick={() => handleToggleStatus(user.id, user.status)} className="text-yellow-600 hover:text-yellow-900 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isCurrentUser}>
+                                                    {user.status === 'disabled' ? 'Habilitar' : 'Deshabilitar'}
+                                                </button>
+                                                <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isCurrentUser}>Eliminar</button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const DirectoryView = ({ userRole, ...masterData }) => {
+            const [sedes, setSedes] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [isModalOpen, setIsModalOpen] = React.useState(false);
+            const [currentSede, setCurrentSede] = React.useState(null);
+            const [searchTerm, setSearchTerm] = React.useState('');
+
+            const isAdmin = userRole === 'admin';
+
+            React.useEffect(() => {
+                setLoading(true);
+                const sedesCollectionPath = `sedes`;
+                const q = db.collection(sedesCollectionPath);
+                const unsubscribe = q.onSnapshot((querySnapshot) => {
+                    const sedesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setSedes(sedesData);
+                    setLoading(false);
+                }, (error) => {
+                    console.error("Error fetching data:", error);
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const handleSaveSede = async (sedeData) => {
+                if (!isAdmin) return;
+                const sedesCollectionPath = `sedes`;
+                const { id, ...dataToSave } = sedeData;
+                if (id) {
+                    const sedeRef = db.collection(sedesCollectionPath).doc(id);
+                    await sedeRef.update(dataToSave);
+                } else {
+                    await db.collection(sedesCollectionPath).add(dataToSave);
+                }
+            };
+            
+            const handleDeleteSede = async (id) => {
+                if (!isAdmin) return;
+                try {
+                    const sedesCollectionPath = `sedes`;
+                    await db.collection(sedesCollectionPath).doc(id).delete();
+                } catch (error) {
+                    console.error("Error deleting sede:", error);
+                }
+            };
+            
+            const openModalToAdd = () => { setCurrentSede(null); setIsModalOpen(true); };
+            const openModalToEdit = (sede) => { setCurrentSede(sede); setIsModalOpen(true); };
+
+            const filteredSedes = React.useMemo(() => {
+                if (!searchTerm) return sedes;
+                const lowercasedFilter = searchTerm.toLowerCase();
+                return sedes.filter(item => Object.values(item).some(value => String(value).toLowerCase().includes(lowercasedFilter)));
+            }, [sedes, searchTerm]);
+
+            return (
+                 <div className="bg-white p-6 rounded-lg shadow-lg">
+                     {isAdmin && <SedeFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveSede} currentSede={currentSede} {...masterData} />}
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <div className="w-full md:w-1/2 lg:w-1/3">
+                            <input type="text" placeholder="Buscar en el directorio..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-full shadow-sm" />
+                        </div>
+                        {isAdmin && (
+                            <button onClick={openModalToAdd} className="w-full md:w-auto flex items-center justify-center px-6 py-2 bg-indigo-600 text-white font-semibold rounded-full shadow-md hover:bg-indigo-700">
+                                <AddIcon /> Nuevo Registro
+                            </button>
+                        )}
+                    </div>
+                    {loading ? ( <div className="text-center py-10"><p className="text-gray-500">Cargando directorio...</p></div> ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {['Unidad Orgánica', 'Dirección', 'Unidad', 'Sede', 'Piso'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>)}
+                                    {isAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>}
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredSedes.map(sede => (
+                                    <tr key={sede.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4"><div className="text-sm font-semibold text-gray-900">{sede.dependencia || 'N/A'} ({sede.siglaDependencia})</div><div className="text-xs text-indigo-600">{sede.jefeDependencia}</div></td>
+                                        <td className="px-6 py-4"><div className="text-sm text-gray-800">{sede.oficina} ({sede.siglaOficina})</div><div className="text-xs text-indigo-600">{sede.jefeOficina}</div></td>
+                                        <td className="px-6 py-4"><div className="text-sm text-gray-800">{sede.subOficina} ({sede.siglaSubOficina})</div><div className="text-xs text-indigo-600">{sede.jefeSubOficina}</div></td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{sede.sede}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{sede.piso}</td>
+                                        {isAdmin && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div className="flex items-center space-x-3">
+                                                <button onClick={() => openModalToEdit(sede)} className="text-indigo-600 hover:text-indigo-900" title="Editar"><EditIcon /></button>
+                                                <button onClick={() => handleDeleteSede(sede.id)} className="text-red-600 hover:text-red-900" title="Eliminar"><DeleteIcon /></button>
+                                            </div>
+                                        </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    )}
+                </div>
+            );
+        };
+
+        const MaestrosView = ({ title, data, collectionName }) => {
+            const [form, setForm] = React.useState({ sigla: '', nombre: '', jefe: '' });
+            const [editingId, setEditingId] = React.useState(null);
+            const collectionPath = `${collectionName}`;
+
+            const handleInputChange = (e) => {
+                setForm({ ...form, [e.target.name]: e.target.value });
+            };
+
+            const handleSave = async (e) => {
+                e.preventDefault();
+                if (!form.sigla || !form.nombre) {
+                    alert('La sigla y el nombre son obligatorios.');
+                    return;
+                }
+                try {
+                    if (editingId) {
+                        await db.collection(collectionPath).doc(editingId).update(form);
+                    } else {
+                        await db.collection(collectionPath).add(form);
+                    }
+                    setForm({ sigla: '', nombre: '', jefe: '' });
+                    setEditingId(null);
+                } catch (error) {
+                    console.error("Error saving data:", error);
+                }
+            };
+
+            const handleEdit = (item) => {
+                setForm({ sigla: item.sigla, nombre: item.nombre, jefe: item.jefe });
+                setEditingId(item.id);
+            };
+
+            const handleDelete = async (id) => {
+                try {
+                    await db.collection(collectionPath).doc(id).delete();
+                } catch (error) {
+                    console.error("Error deleting item from Maestros:", error);
+                }
+            };
+            
+            return (
+                <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
+                    <h2 className="text-2xl font-bold mb-4">{title}</h2>
+                    <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 border rounded-md">
+                        <input name="sigla" value={form.sigla} onChange={handleInputChange} placeholder="Sigla" className="px-3 py-2 border rounded-md" />
+                        <input name="nombre" value={form.nombre} onChange={handleInputChange} placeholder="Nombre Completo" className="px-3 py-2 border rounded-md" />
+                        <input name="jefe" value={form.jefe} onChange={handleInputChange} placeholder="Jefe (Opcional)" className="px-3 py-2 border rounded-md" />
+                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">{editingId ? 'Actualizar' : 'Guardar'}</button>
+                    </form>
+                    <div className="overflow-x-auto">
+                         <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sigla</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jefe</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {data.map(item => (
+                                    <tr key={item.id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{item.sigla}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">{item.nombre}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.jefe}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm space-x-3">
+                                            <button onClick={() => handleEdit(item)} className="text-indigo-600 hover:text-indigo-900">Editar</button>
+                                            <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900">Eliminar</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )
+        };
+
+        const seedDatabase = async () => { /* ... Seeding function ... */ };
+        
+        function App() {
+            const [currentUser, setCurrentUser] = React.useState(null);
+            const [userRole, setUserRole] = React.useState(null);
+            const [users, setUsers] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [view, setView] = React.useState('directory');
+            const [unidadesOrganicas, setUnidadesOrganicas] = React.useState([]);
+            const [direcciones, setDirecciones] = React.useState([]);
+            const [unidades, setUnidades] = React.useState([]);
+
+            React.useEffect(() => {
+                const unsubscribe = auth.onAuthStateChanged(async user => {
+                    if (user) {
+                        const usersCollectionPath = `users`;
+                        const userDocRef = db.collection(usersCollectionPath).doc(user.uid);
+                        const docSnap = await userDocRef.get();
+
+                        if (docSnap.exists) { // Corrected from docSnap.exists()
+                            const userData = docSnap.data();
+                            if (userData.status === 'disabled') {
+                                 alert("Esta cuenta ha sido deshabilitada.");
+                                 auth.signOut();
+                            } else {
+                                setUserRole(userData.role);
+                                setCurrentUser(user);
+                            }
+                        } else {
+                            let newUserRecord = {
+                                email: user.email,
+                                status: 'active',
+                                createdAt: new Date(),
+                            };
+
+                            if (user.isAnonymous) {
+                                let ipAddress = 'N/A';
+                                try {
+                                    const response = await fetch('https://api.ipify.org?format=json');
+                                    const data = await response.json();
+                                    ipAddress = data.ip;
+                                } catch (e) { console.error("Could not fetch IP address.", e); }
+                                
+                                newUserRecord.role = 'user';
+                                newUserRecord.ipAddress = ipAddress;
+                                newUserRecord.userAgent = navigator.userAgent;
+
+                            } else {
+                                const isAdminEmail = user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+                                newUserRecord.role = isAdminEmail ? 'admin' : 'user';
+                            }
+                            
+                            await userDocRef.set(newUserRecord);
+                            setUserRole(newUserRecord.role);
+                            setCurrentUser(user);
+                        }
+                    } else {
+                        setCurrentUser(null);
+                        setUserRole(null);
+                    }
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
+            
+             React.useEffect(() => {
+                if (!currentUser) return;
+
+                const collections = {
+                    unidadesOrganicas: setUnidadesOrganicas,
+                    direcciones: setDirecciones,
+                    unidades: setUnidades
+                };
+
+                const unsubscribers = Object.entries(collections).map(([name, setter]) => {
+                    const q = db.collection(name);
+                    return q.onSnapshot((snapshot) => {
+                        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setter(list);
+                    });
+                });
+
+                if (userRole === 'admin') {
+                    const q = db.collection('users');
+                    const unsubUsers = q.onSnapshot((querySnapshot) => {
+                        const usersData = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        setUsers(usersData);
+                    });
+                    unsubscribers.push(unsubUsers);
+                }
+
+                return () => unsubscribers.forEach(unsub => unsub());
+
+            }, [currentUser, userRole]);
+
+            const handleAdminLogin = (email, password) => auth.signInWithEmailAndPassword(email, password);
+            const handleGuestLogin = () => auth.signInAnonymously();
+            const handleLogout = () => auth.signOut();
+
+            if (loading) {
+                return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><p>Cargando aplicación...</p></div>;
+            }
+            
+            if (!currentUser) {
+                return <LoginScreen onAdminLogin={handleAdminLogin} onGuestLogin={handleGuestLogin} />;
+            }
+
+            const isAdmin = userRole === 'admin';
+
+            return (
+                <div className="bg-gray-100 min-h-screen font-sans text-gray-800">
+                    <header className="bg-white shadow-md">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center py-4">
+                                <h1 className="text-2xl font-bold text-gray-900">Directorio Institucional del MINEDU</h1>
+                                <div className="flex items-center space-x-4">
+                                    {isAdmin && (
+                                        <nav className="flex space-x-2">
+                                             <button onClick={() => setView('directory')} className={`px-3 py-1 text-sm font-medium rounded-md ${view === 'directory' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}>Directorio</button>
+                                             <button onClick={() => setView('users')} className={`px-3 py-1 text-sm font-medium rounded-md ${view === 'users' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}>Usuarios</button>
+                                             <button onClick={() => setView('maestros')} className={`px-3 py-1 text-sm font-medium rounded-md ${view === 'maestros' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}>Maestros</button>
+                                        </nav>
+                                    )}
+                                    <p className="text-sm text-gray-600 hidden md:block">{isAdmin ? `Admin: ${currentUser.email}` : `Invitado: ${currentUser.uid.substring(0,8)}...`}</p>
+                                    <button onClick={handleLogout} className="flex items-center text-sm text-red-500 hover:text-red-700 font-medium">
+                                        <LogoutIcon /> <span className="hidden md:block">Salir</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+                     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                         {view === 'directory' && <DirectoryView userRole={userRole} unidadesOrganicas={unidadesOrganicas} direcciones={direcciones} unidades={unidades} />}
+                         {view === 'users' && isAdmin && <UserManagementView users={users} currentUser={currentUser} />}
+                         {view === 'maestros' && isAdmin && (
+                             <div>
+                                 <MaestrosView title="Gestionar Unidades Orgánicas" data={unidadesOrganicas} collectionName="unidadesOrganicas" />
+                                 <MaestrosView title="Gestionar Direcciones" data={direcciones} collectionName="direcciones" />
+                                 <MaestrosView title="Gestionar Unidades" data={unidades} collectionName="unidades" />
+                             </div>
+                         )}
+                     </main>
+                </div>
+            );
+        }
+        
+        // --- FIN DEL CÓDIGO DE REACT ---
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+
