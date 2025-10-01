@@ -72,7 +72,7 @@
                 <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
                     <div className="w-full max-w-sm bg-white rounded-lg shadow-xl p-8">
                         <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Directorio Institucional</h1>
-                        <p className="text-center text-gray-500 mb-8 text-sm">USO INTERNO</p>
+                        <p className="text-center text-gray-500 mb-8">USO INTERNO</p>
                         <form onSubmit={handleLogin} className="space-y-4">
                             {error && <p className="bg-red-100 text-red-700 p-3 rounded-md text-sm text-center">{error}</p>}
                             <div>
@@ -372,14 +372,45 @@
                 }
                 try {
                     if (editingId) {
+                        // Es una actualización, así que actualizamos el maestro y luego los registros relacionados.
                         await db.collection(collectionPath).doc(editingId).update(form);
+
+                        const batch = db.batch();
+                        const sedesCollectionPath = `sedes`;
+                        let fieldToQuery = '';
+                        let fieldsToUpdate = {};
+
+                        switch (collectionName) {
+                            case 'unidadesOrganicas':
+                                fieldToQuery = 'siglaDependencia';
+                                fieldsToUpdate = { dependencia: form.nombre, jefeDependencia: form.jefe };
+                                break;
+                            case 'direcciones':
+                                fieldToQuery = 'siglaOficina';
+                                fieldsToUpdate = { oficina: form.nombre, jefeOficina: form.jefe };
+                                break;
+                            case 'unidades':
+                                fieldToQuery = 'siglaSubOficina';
+                                fieldsToUpdate = { subOficina: form.nombre, jefeSubOficina: form.jefe };
+                                break;
+                        }
+
+                        if (fieldToQuery) {
+                            const querySnapshot = await db.collection(sedesCollectionPath).where(fieldToQuery, '==', form.sigla).get();
+                            querySnapshot.forEach(doc => {
+                                const sedeRef = db.collection(sedesCollectionPath).doc(doc.id);
+                                batch.update(sedeRef, fieldsToUpdate);
+                            });
+                            await batch.commit();
+                        }
                     } else {
+                        // Es un nuevo registro, solo lo agregamos.
                         await db.collection(collectionPath).add(form);
                     }
                     setForm({ sigla: '', nombre: '', jefe: '' });
                     setEditingId(null);
                 } catch (error) {
-                    console.error("Error saving data:", error);
+                    console.error("Error al guardar y actualizar datos relacionados:", error);
                 }
             };
 
@@ -445,6 +476,34 @@
             const [unidadesOrganicas, setUnidadesOrganicas] = React.useState([]);
             const [direcciones, setDirecciones] = React.useState([]);
             const [unidades, setUnidades] = React.useState([]);
+
+            const handleLogout = () => auth.signOut();
+
+            React.useEffect(() => {
+                let inactivityTimer;
+
+                const resetTimer = () => {
+                    clearTimeout(inactivityTimer);
+                    inactivityTimer = setTimeout(() => {
+                        if (auth.currentUser) {
+                            console.log("Cerrando sesión por inactividad.");
+                            handleLogout();
+                        }
+                    }, 3600000); // 1 hora en milisegundos
+                };
+
+                if (currentUser) {
+                    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+                    events.forEach(event => window.addEventListener(event, resetTimer));
+                    resetTimer();
+                }
+
+                return () => {
+                    clearTimeout(inactivityTimer);
+                    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+                    events.forEach(event => window.removeEventListener(event, resetTimer));
+                };
+            }, [currentUser]);
 
             React.useEffect(() => {
                 const unsubscribe = auth.onAuthStateChanged(async user => {
@@ -514,7 +573,7 @@
             }, [currentUser, userRole]);
 
             const handleLogin = (email, password) => auth.signInWithEmailAndPassword(email, password);
-            const handleLogout = () => auth.signOut();
+            
 
             if (loading) {
                 return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><p>Cargando aplicación...</p></div>;
@@ -569,4 +628,7 @@
     </script>
 </body>
 </html>
+
+
+
 
