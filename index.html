@@ -476,8 +476,14 @@
             const [unidadesOrganicas, setUnidadesOrganicas] = React.useState([]);
             const [direcciones, setDirecciones] = React.useState([]);
             const [unidades, setUnidades] = React.useState([]);
+            const [currentTime, setCurrentTime] = React.useState(new Date());
 
             const handleLogout = () => auth.signOut();
+
+            React.useEffect(() => {
+                const timerId = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timerId);
+            }, []);
 
             React.useEffect(() => {
                 let inactivityTimer;
@@ -489,7 +495,7 @@
                             console.log("Cerrando sesión por inactividad.");
                             handleLogout();
                         }
-                    }, 900000); // 1 hora en milisegundos
+                    }, 900000); // 15 minutos en milisegundos
                 };
 
                 if (currentUser) {
@@ -585,12 +591,21 @@
 
             const isAdmin = userRole === 'admin';
 
+            const formattedDate = new Intl.DateTimeFormat('es-PE', {
+                dateStyle: 'full',
+                timeStyle: 'medium',
+                timeZone: 'America/Lima', // UTC-5
+            }).format(currentTime);
+
             return (
                 <div className="bg-gray-100 min-h-screen font-sans text-gray-800">
                     <header className="bg-white shadow-md">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex justify-between items-center py-4">
-                                <h1 className="text-2xl font-bold text-gray-900">Directorio Institucional del MINEDU</h1>
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-900">Directorio Institucional del MINEDU</h1>
+                                    <p className="text-sm text-gray-500 capitalize">{formattedDate}</p>
+                                </div>
                                 <div className="flex items-center space-x-4">
                                     {isAdmin && (
                                         <nav className="flex space-x-2">
@@ -628,3 +643,6 @@
     </script>
 </body>
 </html>
+
+
+
